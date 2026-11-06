@@ -20,3 +20,5 @@ curl http://127.0.0.1:18081/bzz/<REFERENCE>/
 ```
 
 These commands are planned and have not been tested against the network. Store `nym-state` securely: it contains the service identity. The filter limits responses to 2 MiB and intentionally accepts only simple reference paths; unsupported methods return 501.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the intended component and request-flow diagrams.
