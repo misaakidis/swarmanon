@@ -1,0 +1,22 @@
+services:
+  bee:
+    image: ethersphere/bee:2.8.3
+    command: ["start"]
+    environment:
+      BEE_API_ADDR: ":1633"
+      BEE_FULL_NODE: "false"
+      BEE_SWAP_ENABLE: "false"
+      BEE_PASSWORD: "prototype-only"
+    volumes:
+      - bee-data:/home/bee/.bee
+  gateway:
+    image: swarmanon-gateway:dffb61e
+    environment:
+      BEE_API_URL: http://bee:1633
+      HOSTNAME: localhost
+    ports:
+      - "127.0.0.1:13000:3000"
+    depends_on:
+      - bee
+volumes:
+  bee-data:
