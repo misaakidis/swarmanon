@@ -5,14 +5,15 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 import re
+import os
 
-UPSTREAM = 'http://127.0.0.1:13000'
+UPSTREAM = os.environ.get('SWARM_GATEWAY_URL', 'http://127.0.0.1:13000')
 MAX_SIZE = 2 * 1024 * 1024
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlsplit(self.path)
-        if path.scheme or path.netloc or not re.fullmatch(r'/bzz/[0-9a-fA-F]{64}(?:/[^?#]*)?', path.path) or path.query:
-            self.send_error(400, 'Expected /bzz/<64-character hex reference>/...')
+        if path.scheme or path.netloc or not re.fullmatch(r'/bzz/(?:[0-9a-fA-F]{64}|(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+eth)(?:/[^?#]*)?', path.path) or path.query:
+            self.send_error(400, 'Expected /bzz/<Swarm reference or ENS name>/...')
             return
         try:
             with urlopen(Request(UPSTREAM + path.path, headers={'User-Agent': 'swarm-nym-prototype'}), timeout=30) as response:
@@ -33,4 +34,4 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == '__main__':
-    ThreadingHTTPServer(('127.0.0.1', 18080), Handler).serve_forever()
+    ThreadingHTTPServer((os.environ.get('FILTER_BIND', '127.0.0.1'), 18080), Handler).serve_forever()

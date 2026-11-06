@@ -1,24 +1,34 @@
-# Swarm over Nym prototype
+# swarmanon
 
-Our Swarm Gateway and a Bee ultra-light node run on Swarm mainnet. `gateway.py` binds a read-only filter to loopback port 18080 and forwards `/bzz/<64-hex-reference>/...` to our gateway on loopback port 13000. Bee is not exposed to the host. Ultra-light downloads are subject to peers' free-tier limits.
+swarmanon serves Swarm content through a Nym-addressed service. A Bee ultra-light node retrieves content on Swarm mainnet, Swarm Gateway resolves ENS names using an Ethereum RPC, and a read-only filter limits requests before they reach the gateway. Nym RPC transports requests between a local client and the service using the Nym mixnet.
 
-The intended Nym service uses [nym-rpc](https://github.com/nymtech/nym-rpc) in raw TCP mode, with the server pinned to `127.0.0.1:18080`. Pinning is required to prevent an open relay. Its administrative HTTP API must remain loopback-only. Publish the server's Nym address to users; the client exposes a local HTTP port. Both sides use Nym mainnet by default.
+## Start the service
 
-Build the gateway image from `ethersphere/swarm-gateway` commit `dffb61e65b6450066947d7706b5fa9a8060dbbb8` as `swarmanon-gateway:dffb61e`, then run `docker compose up -d` and `python3 gateway.py`. The Nym transport and end-to-end retrieval have not yet been verified. The fixed Bee password is for disposable prototype data only. Neither traffic anonymity nor content integrity has been independently verified.
-
-Once nym-rpc has been built, start the service with:
+Install Docker and Docker Compose, then run:
 
 ```sh
-nym-rpc-server --config-dir ./nym-state --pin-upstream 127.0.0.1:18080
+docker compose up -d --build
 ```
 
-Copy its Nym address to the client and start the tunnel:
+Set `ENS_RPC_URL` in the environment to use a different Ethereum mainnet RPC. The default Bee password is for disposable prototype data only. Bee and the Nym service state are stored in Docker volumes; preserve the Nym volume to retain the service identity. The filter and Bee API are private to the Compose network.
+
+Get the Nym service address from the logs:
 
 ```sh
-nym-rpc-client --raw --listen-port 18081 --upstream 127.0.0.1:18080 -x '<NYM_ADDRESS>'
-curl http://127.0.0.1:18081/bzz/<REFERENCE>/
+docker compose logs nym-service | grep 'Nym address:'
 ```
 
-These commands are planned and have not been tested against the network. Store `nym-state` securely: it contains the service identity. The filter limits responses to 2 MiB and intentionally accepts only simple reference paths; unsupported methods return 501.
+## Connect from a laptop
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the intended component and request-flow diagrams.
+Set `NYM_SERVICE_ADDRESS` to the service address and start the client profile:
+
+```sh
+export NYM_SERVICE_ADDRESS='<service Nym address>'
+docker compose --profile client up -d nym-client
+```
+
+Then open `http://127.0.0.1:18081/bzz/<name.eth>/` or `/bzz/<reference>/` in the laptop browser. The client listens only on the laptop loopback interface. For example, `apps.ontheswarm.eth` is an existing public Swarm page that can be used for testing. The service itself is addressed by its Nym address; it does not require an ENS name.
+
+The filter permits GET requests for 64-character hexadecimal references and ASCII `.eth` names, rejects query strings, and caps responses at 2 MiB. Bee ultra-light downloads are subject to peers' free-tier limits. The prototype's fixed upstream prevents the Nym service from acting as a general-purpose relay.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for component and request-flow diagrams.

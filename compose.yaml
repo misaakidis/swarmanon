@@ -1,3 +1,4 @@
+name: swarmanon
 services:
   bee:
     image: ethersphere/bee:2.8.3
@@ -10,13 +11,39 @@ services:
     volumes:
       - bee-data:/home/bee/.bee
   gateway:
-    image: swarmanon-gateway:dffb61e
+    build:
+      context: https://github.com/ethersphere/swarm-gateway.git#dffb61e65b6450066947d7706b5fa9a8060dbbb8
     environment:
       BEE_API_URL: http://bee:1633
       HOSTNAME: localhost
-    ports:
-      - "127.0.0.1:13000:3000"
+      ENS_RPC_URL: ${ENS_RPC_URL:-https://eth-mainnet.public.blastapi.io}
     depends_on:
       - bee
+  filter:
+    build:
+      context: .
+      dockerfile: Dockerfile.filter
+    environment:
+      FILTER_BIND: 0.0.0.0
+      SWARM_GATEWAY_URL: http://gateway:3000
+    depends_on:
+      - gateway
+  nym-service:
+    image: swarmanon-nym:local
+    build:
+      context: .
+      dockerfile: Dockerfile.nym
+    command: ["nym-rpc-server", "--config-dir", "/state", "--pin-upstream", "filter:18080"]
+    volumes:
+      - nym-state:/state
+    depends_on:
+      - filter
+  nym-client:
+    profiles: ["client"]
+    image: swarmanon-nym:local
+    command: ["nym-rpc-client", "--raw", "--listen-address", "0.0.0.0", "--listen-port", "18081", "--upstream", "filter:18080", "-x", "${NYM_SERVICE_ADDRESS:-set-service-address}"]
+    ports:
+      - "127.0.0.1:18081:18081"
 volumes:
   bee-data:
+  nym-state:
